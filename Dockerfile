@@ -39,6 +39,9 @@ COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
+# Run as non-root user
+USER node
+
 # Start production server with migration
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["npx", "next", "start", "-H", "0.0.0.0"]
