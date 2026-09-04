@@ -11,5 +11,5 @@ command = "npm run start"
 port_env = "PORT"
 
 [db]
-migrate = "sh -c 'if [ -n \"$DATABASE_URL\" ]; then npx drizzle-kit migrate; else echo \"DATABASE_URL not set; skipping migrations (chat history disabled)\"; fi'"
+migrate = "node scripts/preview-migrate.mjs"
 seed = false
