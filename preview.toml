@@ -1,0 +1,15 @@
+# Autosquad preview manifest. See conventions/preview-toml.md.
+# Next.js server. Chat history lives in PostgreSQL (DATABASE_URL is injected by the platform);
+# Drizzle migrations are not auto-detected, so the command is declared here.
+model = "server"
+
+[build]
+command = "npm run build"
+
+[serve]
+command = "npm run start"
+port_env = "PORT"
+
+[db]
+migrate = "npx drizzle-kit migrate"
+seed = false
