@@ -3,12 +3,9 @@ FROM node:22-slim AS builder
 
 WORKDIR /app
 
-# Install bun for dependency management
-RUN npm install -g bun
-
-# Install dependencies (separated for better cache utilization)
-COPY package.json bun.lock ./
-RUN bun install
+# 레포에는 package-lock.json만 있다(bun.lock 없음) — npm으로 설치.
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Copy source code and build
 COPY . .
@@ -27,7 +24,6 @@ RUN npm install -g bun
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/bun.lock ./bun.lock
 COPY --from=builder /app/node_modules ./node_modules
 
 # Copy migration files and scripts
