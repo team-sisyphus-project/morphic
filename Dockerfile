@@ -4,7 +4,8 @@ FROM node:22-slim AS builder
 WORKDIR /app
 
 # 레포에는 package-lock.json만 있다(bun.lock 없음) — npm으로 설치.
-COPY package.json package-lock.json ./
+# .npmrc(legacy-peer-deps)가 없으면 npm ci가 ERESOLVE로 죽는다 — 함께 복사.
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 
 # Copy source code and build
