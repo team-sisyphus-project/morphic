@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 
+import { IconSearch } from '@tabler/icons-react'
 import { toast } from 'sonner'
 
 import { deleteChat, pinChatById } from '@/lib/actions/chat'
@@ -43,58 +44,75 @@ export function ChatHistoryClient() {
   const [chats, setChats] = useState<HistoryChat[]>([])
   const [nextOffset, setNextOffset] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [searchValue, setSearchValue] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const [isPending, startTransition] = useTransition()
 
+  // Debounce: after 300 ms of inactivity, commit the search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchValue)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchValue])
+
   // ── Fetch helpers ──────────────────────────────────────────────────────────
 
-  const fetchInitialChats = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      if (mode === 'idb') {
-        const repo = getHistoryRepository()
-        const { chats: fetched, nextOffset: newNextOffset } = await repo.listChats({
-          limit: 20,
-          offset: 0
-        })
-        setChats(fetched)
-        setNextOffset(newNextOffset)
-      } else {
-        const response = await fetch(`/api/chats?offset=0&limit=20`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch initial chat history')
+  const fetchInitialChats = useCallback(
+    async (query?: string) => {
+      setIsLoading(true)
+      try {
+        if (mode === 'idb') {
+          const repo = getHistoryRepository()
+          const { chats: fetched, nextOffset: newNextOffset } = await repo.listChats({
+            limit: 20,
+            offset: 0,
+            query: query || undefined
+          })
+          setChats(fetched)
+          setNextOffset(newNextOffset)
+        } else {
+          const params = new URLSearchParams({ offset: '0', limit: '20' })
+          if (query) params.set('query', query)
+          const response = await fetch(`/api/chats?${params.toString()}`)
+          if (!response.ok) {
+            throw new Error('Failed to fetch initial chat history')
+          }
+          const { chats: raw, nextOffset: newNextOffset } =
+            (await response.json()) as ChatPageResponse
+          setChats(raw.map(dbResponseToHistoryChat))
+          setNextOffset(newNextOffset)
         }
-        const { chats: raw, nextOffset: newNextOffset } =
-          (await response.json()) as ChatPageResponse
-        setChats(raw.map(dbResponseToHistoryChat))
-        setNextOffset(newNextOffset)
+      } catch (error) {
+        console.error('Failed to load initial chats:', error)
+        toast.error('Failed to load chat history.')
+        setNextOffset(null)
+      } finally {
+        setIsLoading(false)
       }
-    } catch (error) {
-      console.error('Failed to load initial chats:', error)
-      toast.error('Failed to load chat history.')
-      setNextOffset(null)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [mode])
+    },
+    [mode]
+  )
 
+  // Re-fetch whenever the debounced query changes (including on mount)
   useEffect(() => {
     // Intentional: async fetch on mount; setState calls happen after awaits
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchInitialChats()
-  }, [fetchInitialChats])
+    fetchInitialChats(debouncedQuery)
+  }, [fetchInitialChats, debouncedQuery])
 
   useEffect(() => {
     const handleHistoryUpdate = () => {
       startTransition(async () => {
-        await fetchInitialChats()
+        await fetchInitialChats(debouncedQuery)
       })
     }
     window.addEventListener('chat-history-updated', handleHistoryUpdate)
     return () => {
       window.removeEventListener('chat-history-updated', handleHistoryUpdate)
     }
-  }, [fetchInitialChats, startTransition])
+  }, [fetchInitialChats, startTransition, debouncedQuery])
 
   const fetchMoreChats = useCallback(async () => {
     if (isLoading || nextOffset === null) return
@@ -105,12 +123,18 @@ export function ChatHistoryClient() {
         const repo = getHistoryRepository()
         const { chats: fetched, nextOffset: newNextOffset } = await repo.listChats({
           limit: 20,
-          offset: nextOffset
+          offset: nextOffset,
+          query: debouncedQuery || undefined
         })
         setChats(prevChats => [...prevChats, ...fetched])
         setNextOffset(newNextOffset)
       } else {
-        const response = await fetch(`/api/chats?offset=${nextOffset}&limit=20`)
+        const params = new URLSearchParams({
+          offset: String(nextOffset),
+          limit: '20'
+        })
+        if (debouncedQuery) params.set('query', debouncedQuery)
+        const response = await fetch(`/api/chats?${params.toString()}`)
         if (!response.ok) {
           throw new Error('Failed to fetch more chat history')
         }
@@ -126,7 +150,7 @@ export function ChatHistoryClient() {
     } finally {
       setIsLoading(false)
     }
-  }, [nextOffset, isLoading, mode])
+  }, [nextOffset, isLoading, mode, debouncedQuery])
 
   useEffect(() => {
     const observerRefValue = loadMoreRef.current
@@ -210,15 +234,29 @@ export function ChatHistoryClient() {
         <div className="flex items-center justify-between w-full">
           <SidebarGroupLabel className="p-0">History</SidebarGroupLabel>
           <ClearHistoryAction
-            empty={isHistoryEmpty}
+            empty={isHistoryEmpty && !debouncedQuery}
             onClear={mode === 'idb' ? handleClear : undefined}
+          />
+        </div>
+        <div className="relative mt-1">
+          <IconSearch
+            size={14}
+            className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+          />
+          <input
+            type="search"
+            placeholder="Search history…"
+            value={searchValue}
+            onChange={e => setSearchValue(e.target.value)}
+            className="w-full rounded-md border border-input bg-transparent py-1 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            aria-label="Search chat history"
           />
         </div>
       </SidebarGroup>
       <div className="flex-1 overflow-y-auto mb-2 relative">
         {isHistoryEmpty && !isPending ? (
           <div className="px-2 text-foreground/30 text-sm text-center py-4">
-            No search history
+            {debouncedQuery ? 'No matching conversations' : 'No search history'}
           </div>
         ) : (
           <SidebarMenu>

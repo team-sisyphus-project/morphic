@@ -85,12 +85,33 @@ describe('Chat Actions', () => {
       }
 
       vi.mocked(getCurrentUserId).mockResolvedValue(userId)
-      vi.mocked(dbActions.getChatsPage).mockResolvedValue(mockResult)
+      vi.mocked(dbActions.listHistoryChats).mockResolvedValue(mockResult)
 
       const result = await getChatsPage(20, 0)
 
       expect(result).toEqual(mockResult)
-      expect(dbActions.getChatsPage).toHaveBeenCalledWith(userId, 20, 0)
+      expect(dbActions.listHistoryChats).toHaveBeenCalledWith(userId, {
+        limit: 20,
+        offset: 0,
+        query: undefined
+      })
+    })
+
+    it('forwards query to listHistoryChats', async () => {
+      const userId = 'user-123'
+      vi.mocked(getCurrentUserId).mockResolvedValue(userId)
+      vi.mocked(dbActions.listHistoryChats).mockResolvedValue({
+        chats: [],
+        nextOffset: null
+      })
+
+      await getChatsPage(10, 5, 'hello')
+
+      expect(dbActions.listHistoryChats).toHaveBeenCalledWith(userId, {
+        limit: 10,
+        offset: 5,
+        query: 'hello'
+      })
     })
 
     it('should return empty result for unauthenticated user', async () => {
@@ -99,7 +120,7 @@ describe('Chat Actions', () => {
       const result = await getChatsPage()
 
       expect(result).toEqual({ chats: [], nextOffset: null })
-      expect(dbActions.getChatsPage).not.toHaveBeenCalled()
+      expect(dbActions.listHistoryChats).not.toHaveBeenCalled()
     })
   })
 

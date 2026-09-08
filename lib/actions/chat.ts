@@ -69,14 +69,20 @@ export async function getChats() {
 }
 
 /**
- * Get chats with pagination for the current user
+ * Get chats with pagination for the current user.
+ * Uses listHistoryChats so results are ordered pinned-first and can be filtered
+ * by a free-text query.
  */
-export async function getChatsPage(limit = 20, offset = 0) {
+export async function getChatsPage(
+  limit = 20,
+  offset = 0,
+  query?: string
+) {
   const userId = await getCurrentUserId()
   if (!userId) {
     return { chats: [], nextOffset: null }
   }
-  return dbActions.getChatsPage(userId, limit, offset)
+  return dbActions.listHistoryChats(userId, { limit, offset, query })
 }
 
 /**
