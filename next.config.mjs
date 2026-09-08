@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Expose the history storage mode to client bundles.
+  // "db" when DATABASE_URL is present (server-side DB); "idb" otherwise (IndexedDB).
+  env: {
+    NEXT_PUBLIC_HISTORY_MODE: process.env.DATABASE_URL ? 'db' : 'idb'
+  },
   // Reverse proxy for PostHog to reduce tracking-blocker interception.
   skipTrailingSlashRedirect: true,
   async rewrites() {
