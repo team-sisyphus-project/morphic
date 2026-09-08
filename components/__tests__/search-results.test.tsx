@@ -1,8 +1,9 @@
 import React from 'react'
 
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, test, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
+import { setActiveSourceUrl } from '../citation-context'
 import { SearchResults } from '../search-results'
 
 // Stub the sheet so we don't need a full Radix environment
@@ -125,6 +126,73 @@ describe('SearchResults — list mode', () => {
     render(<SearchResults results={results.slice(2)} displayMode="list" />)
     const matches = screen.getAllByText('gamma.io')
     expect(matches.length).toBeGreaterThan(0)
+  })
+})
+
+describe('SearchResults — citation highlight', () => {
+  afterEach(() => {
+    act(() => {
+      setActiveSourceUrl(null)
+    })
+  })
+
+  test('applies ring-2 ring-primary/40 to card matching activeSourceUrl (grid)', async () => {
+    const { container } = render(
+      <SearchResults results={results} displayMode="grid" />
+    )
+
+    await act(async () => {
+      setActiveSourceUrl('https://alpha.com/post')
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('.ring-2.ring-primary\\/40')).not.toBeNull()
+    })
+  })
+
+  test('removes highlight when activeSourceUrl is cleared (grid)', async () => {
+    const { container } = render(
+      <SearchResults results={results} displayMode="grid" />
+    )
+
+    await act(async () => {
+      setActiveSourceUrl('https://alpha.com/post')
+    })
+    await act(async () => {
+      setActiveSourceUrl(null)
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('.ring-2')).toBeNull()
+    })
+  })
+
+  test('applies ring to correct card in list mode', async () => {
+    const { container } = render(
+      <SearchResults results={results} displayMode="list" />
+    )
+
+    await act(async () => {
+      setActiveSourceUrl('https://beta.org/article')
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('.ring-2.ring-primary\\/40')).not.toBeNull()
+    })
+  })
+
+  test('does not highlight any card when URL does not match any result', async () => {
+    const { container } = render(
+      <SearchResults results={results} displayMode="grid" />
+    )
+
+    await act(async () => {
+      setActiveSourceUrl('https://no-match.com/page')
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('.ring-2')).toBeNull()
+    })
   })
 })
 

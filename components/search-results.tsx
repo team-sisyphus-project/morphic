@@ -3,12 +3,14 @@
 import { useState } from 'react'
 
 import { SearchResultItem } from '@/lib/types'
+import { cn } from '@/lib/utils'
 import { deriveSourceMeta } from '@/lib/utils/source-meta'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
+import { useActiveSourceUrl } from '@/components/citation-context'
 import { SourceReaderSheet } from '@/components/source-reader-sheet'
 
 export interface SearchResultsProps {
@@ -57,6 +59,7 @@ export function SearchResults({
     null
   )
   const [sheetOpen, setSheetOpen] = useState(false)
+  const activeSourceUrl = useActiveSourceUrl()
 
   const handleCardClick = (result: SearchResultItem) => {
     setActiveResult(result)
@@ -87,7 +90,12 @@ export function SearchResults({
                 className="block w-full text-left"
                 onClick={() => handleCardClick(result)}
               >
-                <Card className="w-full cursor-pointer hover:bg-muted/50 transition-colors">
+                <Card
+                  className={cn(
+                    'w-full cursor-pointer hover:bg-muted/50 transition-colors',
+                    activeSourceUrl === result.url && 'ring-2 ring-primary/40'
+                  )}
+                >
                   <CardContent className="p-2 flex items-start space-x-2">
                     <Avatar className="h-4 w-4 mt-1 shrink-0">
                       <AvatarImage src={faviconUrl} alt={domain} />
@@ -144,7 +152,12 @@ export function SearchResults({
                 className="block w-full h-full text-left"
                 onClick={() => handleCardClick(result)}
               >
-                <Card className="h-full flex-1 rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                <Card
+                  className={cn(
+                    'h-full flex-1 rounded-md cursor-pointer hover:bg-muted/50 transition-colors',
+                    activeSourceUrl === result.url && 'ring-2 ring-primary/40'
+                  )}
+                >
                   <CardContent className="flex h-full min-w-0 items-center justify-between gap-2 p-2 md:flex-col md:items-stretch">
                     <p className="min-w-0 flex-1 line-clamp-1 text-xs md:min-h-8 md:line-clamp-2">
                       {result.title || result.content}

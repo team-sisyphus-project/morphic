@@ -14,6 +14,8 @@ import {
   PopoverTrigger
 } from '@/components/ui/popover'
 
+import { setActiveSourceUrl } from './citation-context'
+
 interface CitationLinkProps {
   href: string
   children: React.ReactNode
@@ -71,8 +73,14 @@ export const CitationLink = memo(function CitationLink({
             target="_blank"
             rel="noopener noreferrer"
             className={linkClasses}
-            onMouseEnter={() => setOpen(true)}
-            onMouseLeave={() => setOpen(false)}
+            onMouseEnter={() => {
+              setOpen(true)
+              setActiveSourceUrl(citationData.url)
+            }}
+            onMouseLeave={() => {
+              setOpen(false)
+              setActiveSourceUrl(null)
+            }}
           >
             {children}
           </a>
