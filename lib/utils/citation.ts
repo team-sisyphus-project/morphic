@@ -1,6 +1,5 @@
 import type { SearchResultItem, SearchResults } from '@/lib/types'
 import type { UIMessage } from '@/lib/types/ai'
-import { displayUrlName } from '@/lib/utils/domain'
 
 /**
  * Validate if a string is a valid URL
@@ -138,11 +137,8 @@ export function processCitations(
         return '' // Return empty string for invalid citations
       }
 
-      // Extract domain name from URL (removes TLD and subdomain)
-      const domainName = displayUrlName(citation.url)
-
       // Encode URI to prevent injection attacks
-      return `[${domainName}](${encodeURI(citation.url)})`
+      return `[${citationNum}](${encodeURI(citation.url)})`
     }
   )
 }

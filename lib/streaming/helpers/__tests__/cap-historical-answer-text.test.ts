@@ -252,7 +252,7 @@ describe('historical answer text cap', () => {
 
     expect(compactText).toHaveLength(maxChars)
     expect(expandedText).toBe(
-      'Answer[example](https://example.com/a-long-source-path)'
+      'Answer[1](https://example.com/a-long-source-path)'
     )
     expect(expandedText.length).toBeGreaterThan(maxChars)
     expect(answerText).toBe('Answer')

@@ -30,12 +30,12 @@ describe('processCitations', () => {
     } as Record<number, SearchResultItem>
   }
 
-  it('converts numbered citations to domain names', () => {
+  it('converts numbered citations to [n](url) markers', () => {
     const content = 'Check out [1](#toolCall1) and [2](#toolCall1)'
     const result = processCitations(content, mockCitationMaps)
 
     expect(result).toBe(
-      'Check out [google](https://www.google.com) and [github](https://docs.github.com)'
+      'Check out [1](https://www.google.com) and [2](https://docs.github.com)'
     )
   })
 
@@ -43,7 +43,7 @@ describe('processCitations', () => {
     const content = 'See [ 1 ](#toolCall1) for details'
     const result = processCitations(content, mockCitationMaps)
 
-    expect(result).toBe('See [google](https://www.google.com) for details')
+    expect(result).toBe('See [1](https://www.google.com) for details')
   })
 
   it('handles multiple citations from same domain', () => {
@@ -66,11 +66,11 @@ describe('processCitations', () => {
     const result = processCitations(content, citationMaps)
 
     expect(result).toBe(
-      'Try [google](https://www.google.com/search) or [google](https://www.google.com/maps)'
+      'Try [1](https://www.google.com/search) or [2](https://www.google.com/maps)'
     )
   })
 
-  it('converts citations with dotted display labels', () => {
+  it('preserves numeric citation labels from different domains', () => {
     const citationMaps = {
       toolCall1: {
         1: {
@@ -90,7 +90,7 @@ describe('processCitations', () => {
     const result = processCitations(content, citationMaps)
 
     expect(result).toBe(
-      'Sources [global.example](https://topics.global.example.com/portal/news/page.html) [world.example](https://articles.world.example.net/articles/-/123)'
+      'Sources [1](https://topics.global.example.com/portal/news/page.html) [2](https://articles.world.example.net/articles/-/123)'
     )
   })
 
@@ -132,7 +132,7 @@ describe('processCitations', () => {
     const result = processCitations(content, mockCitationMaps)
 
     expect(result).toBe(
-      'See [google](https://www.google.com) and [github](https://docs.github.com)'
+      'See [1](https://www.google.com) and [2](https://docs.github.com)'
     )
   })
 
@@ -140,7 +140,7 @@ describe('processCitations', () => {
     const content = 'See [1](#toolCall1)'
     const result = processCitations(content, mockCitationMaps)
 
-    expect(result).toBe('See [google](https://www.google.com)')
+    expect(result).toBe('See [1](https://www.google.com)')
   })
 
   it('handles content with no citations', () => {
@@ -188,11 +188,9 @@ describe('processCitations', () => {
 
     const result = processCitations(content, mockCitationMaps)
 
-    expect(result).toContain('[google](https://www.google.com)')
-    expect(result).toContain('[github](https://docs.github.com)')
-    expect(result).toContain(
-      '[stackoverflow](https://stackoverflow.com/questions/123)'
-    )
+    expect(result).toContain('[1](https://www.google.com)')
+    expect(result).toContain('[2](https://docs.github.com)')
+    expect(result).toContain('[3](https://stackoverflow.com/questions/123)')
   })
 
   it('handles citation numbers at edge cases', () => {
@@ -260,7 +258,7 @@ describe('processCitations', () => {
       )
       const result = processCitations('See [1](#toolCall1)', maps)
 
-      expect(result).toBe('See [google](https://www.google.com)')
+      expect(result).toBe('See [1](https://www.google.com)')
     })
   })
 
