@@ -304,3 +304,30 @@ describe('IdbHistoryRepository', () => {
     })
   })
 })
+
+// ---------------------------------------------------------------------------
+// Integration: pin survives simulated page reload
+// ---------------------------------------------------------------------------
+
+describe('IdbHistoryRepository — integration: pin persists across reload', () => {
+  it('pinned chat stays at position 0 after creating a fresh repository instance (simulated reload)', async () => {
+    // Use a unique, stable db name shared between both repo instances
+    const sharedDbName = `morphic-history-reload-test-${Date.now()}`
+
+    // --- Session 1: save chats and pin the older one ---
+    const session1 = new IdbHistoryRepository(sharedDbName)
+    await session1.saveChat(makeChat({ id: 'older', createdAt: new Date('2024-01-01') }))
+    await session1.saveChat(makeChat({ id: 'newer', createdAt: new Date('2024-12-01') }))
+    await session1.pinChat('older', true)
+
+    // --- Session 2: fresh instance with the same db name (simulates page reload) ---
+    const session2 = new IdbHistoryRepository(sharedDbName)
+    const result = await session2.listChats()
+
+    expect(result.chats).toHaveLength(2)
+    expect(result.chats[0].id).toBe('older')
+    expect(result.chats[0].pinnedAt).toBeInstanceOf(Date)
+    expect(result.chats[1].id).toBe('newer')
+    expect(result.chats[1].pinnedAt).toBeUndefined()
+  })
+})
