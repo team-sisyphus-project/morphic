@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 
+import { ClearHistoryDropdownItem } from './clear-history-dropdown-item'
 import { ExternalLinkItems } from './external-link-items'
 import { ThemeMenuItems } from './theme-menu-items'
 
@@ -40,6 +41,7 @@ export default function GuestMenu() {
             <span>Sign In</span>
           </Link>
         </DropdownMenuItem>
+        <ClearHistoryDropdownItem />
         <DropdownMenuSeparator />
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
