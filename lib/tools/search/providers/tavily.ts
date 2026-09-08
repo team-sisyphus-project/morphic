@@ -1,5 +1,6 @@
 import { SearchResults } from '@/lib/types'
 import { sanitizeUrl } from '@/lib/utils'
+import { deriveSourceMeta } from '@/lib/utils/source-meta'
 
 import { BaseSearchProvider } from './base'
 
@@ -96,8 +97,23 @@ export class TavilySearchProvider extends BaseSearchProvider {
           )
       : data.images.map((url: string) => sanitizeUrl(url))
 
+    const rawResults = (data.results ?? []) as Array<{
+      title: string
+      url: string
+      content: string
+      published_date?: string
+      [key: string]: unknown
+    }>
+
     return {
       ...data,
+      results: rawResults.map(r => ({
+        title: r.title,
+        url: r.url,
+        content: r.content,
+        ...(r.published_date ? { publishedAt: r.published_date } : {}),
+        ...deriveSourceMeta(r.url)
+      })),
       images: processedImages
     }
   }

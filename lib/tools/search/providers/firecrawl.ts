@@ -6,6 +6,7 @@ import {
 } from '@/lib/firecrawl'
 import { BaseSearchProvider } from '@/lib/tools/search/providers/base'
 import { SearchResults } from '@/lib/types'
+import { deriveSourceMeta } from '@/lib/utils/source-meta'
 
 export class FirecrawlSearchProvider extends BaseSearchProvider {
   async search(
@@ -44,14 +45,18 @@ export class FirecrawlSearchProvider extends BaseSearchProvider {
         return {
           title: resource.title || '',
           url: resource.url,
-          content: markdown || resource.description || ''
+          content: markdown || resource.description || '',
+          ...deriveSourceMeta(resource.url)
         }
       }
 
+      const newsResource = resource as FirecrawlNewsResult
       return {
-        title: resource.title || '',
-        url: resource.url,
-        content: resource.snippet || ''
+        title: newsResource.title || '',
+        url: newsResource.url,
+        content: newsResource.snippet || '',
+        ...(newsResource.date ? { publishedAt: newsResource.date } : {}),
+        ...deriveSourceMeta(newsResource.url)
       }
     })
 

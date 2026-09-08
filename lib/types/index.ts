@@ -41,6 +41,12 @@ export type SearchResultItem = {
   title: string
   url: string
   content: string
+  /** Registered domain extracted from url, www. stripped (e.g. "github.com") */
+  domain?: string
+  /** URL to the site's favicon, derived from domain (e.g. "https://github.com/favicon.ico") */
+  faviconUrl?: string
+  /** ISO 8601 publish date when the provider returns one */
+  publishedAt?: string
 }
 
 export type ExaSearchResultItem = {

@@ -90,7 +90,9 @@ describe('BraveSearchProvider', () => {
       {
         title: 'Result title',
         content: 'Result description',
-        url: 'https://example.com/result'
+        url: 'https://example.com/result',
+        domain: 'example.com',
+        faviconUrl: 'https://example.com/favicon.ico'
       }
     ])
     expect(result.images).toEqual([])

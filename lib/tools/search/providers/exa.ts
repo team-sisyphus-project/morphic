@@ -1,6 +1,7 @@
 import Exa from 'exa-js'
 
 import { SearchResults } from '@/lib/types'
+import { deriveSourceMeta } from '@/lib/utils/source-meta'
 
 import { BaseSearchProvider } from './base'
 
@@ -27,7 +28,11 @@ export class ExaSearchProvider extends BaseSearchProvider {
       results: exaResults.results.map((result: any) => ({
         title: result.title,
         url: result.url,
-        content: result.highlight || result.text
+        content: result.highlight || result.text,
+        ...(result.publishedDate
+          ? { publishedAt: new Date(result.publishedDate).toISOString() }
+          : {}),
+        ...deriveSourceMeta(result.url)
       })),
       query,
       images: [],

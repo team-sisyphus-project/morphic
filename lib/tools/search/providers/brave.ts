@@ -3,6 +3,7 @@ import {
   SearchResults,
   SerperSearchResultItem
 } from '@/lib/types'
+import { deriveSourceMeta } from '@/lib/utils/source-meta'
 
 import { BaseSearchProvider } from './base'
 
@@ -144,7 +145,8 @@ export class BraveSearchProvider extends BaseSearchProvider {
         .map((result: BraveWebResult) => ({
           title: result.title || 'No title',
           content: result.description || 'No description available',
-          url: result.url
+          url: result.url,
+          ...deriveSourceMeta(result.url)
         }))
     } catch (error) {
       console.error('Brave web search error:', error)
