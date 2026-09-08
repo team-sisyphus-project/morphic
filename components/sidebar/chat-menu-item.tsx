@@ -6,12 +6,13 @@ import { usePathname, useRouter } from 'next/navigation'
 
 import {
   IconDots as MoreHorizontal,
+  IconPin,
+  IconPinnedOff,
   IconTrash as Trash2
 } from '@tabler/icons-react'
 import { toast } from 'sonner'
 
-import { deleteChat } from '@/lib/actions/chat'
-import { Chat as DBChat } from '@/lib/db/schema'
+import type { HistoryChat } from '@/lib/history/types'
 
 import {
   AlertDialog,
@@ -38,7 +39,9 @@ import {
 import { Spinner } from '../ui/spinner'
 
 interface ChatMenuItemProps {
-  chat: DBChat
+  chat: HistoryChat
+  onDelete: (id: string) => Promise<{ success: boolean; error?: string }>
+  onPin: (id: string, pinned: boolean) => Promise<void>
 }
 
 const formatDateWithTime = (date: Date | string) => {
@@ -79,7 +82,7 @@ const formatDateWithTime = (date: Date | string) => {
   }
 }
 
-export function ChatMenuItem({ chat }: ChatMenuItemProps) {
+export function ChatMenuItem({ chat, onDelete, onPin }: ChatMenuItemProps) {
   const pathname = usePathname()
   const path = `/search/${chat.id}`
   const isActive = pathname === path
@@ -95,7 +98,7 @@ export function ChatMenuItem({ chat }: ChatMenuItemProps) {
     setIsMenuOpen(false)
 
     startTransition(async () => {
-      const result = await deleteChat(chat.id)
+      const result = await onDelete(chat.id)
 
       if (result?.success) {
         toast.success('Chat deleted')
@@ -109,7 +112,22 @@ export function ChatMenuItem({ chat }: ChatMenuItemProps) {
         toast.error('An unexpected error occurred while deleting the chat.')
       }
     })
-  }, [chat.id, isActive, router, startTransition])
+  }, [chat.id, isActive, router, startTransition, onDelete])
+
+  const handlePinChat = useCallback(() => {
+    setIsMenuOpen(false)
+    const pinned = !chat.pinnedAt
+    startTransition(async () => {
+      try {
+        await onPin(chat.id, pinned)
+        toast.success(pinned ? 'Chat pinned' : 'Chat unpinned')
+        window.dispatchEvent(new CustomEvent('chat-history-updated'))
+      } catch {
+        toast.error('Failed to update pin')
+      }
+    })
+  }, [chat.id, chat.pinnedAt, onPin, startTransition])
+
   const handleMenuOpenChange = useCallback((open: boolean) => {
     setIsMenuOpen(open)
   }, [])
@@ -139,6 +157,26 @@ export function ChatMenuItem({ chat }: ChatMenuItemProps) {
           </SidebarMenuAction>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="right" align="start">
+          <DropdownMenuItem
+            className="gap-2"
+            disabled={isPending}
+            onSelect={event => {
+              event.preventDefault()
+              handlePinChat()
+            }}
+          >
+            {chat.pinnedAt ? (
+              <>
+                <IconPinnedOff size={14} />
+                Unpin
+              </>
+            ) : (
+              <>
+                <IconPin size={14} />
+                Pin
+              </>
+            )}
+          </DropdownMenuItem>
           <DropdownMenuItem
             className="gap-2 text-destructive focus:text-destructive"
             onSelect={event => {

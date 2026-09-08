@@ -300,6 +300,22 @@ export async function deleteChat(chatId: string) {
 }
 
 /**
+ * Pin or unpin a chat.
+ */
+export async function pinChatById(chatId: string, pinned: boolean) {
+  if (!hasDatabase()) {
+    return { success: false, error: 'No database configured' }
+  }
+  const userId = await getCurrentUserId()
+  if (!userId) {
+    return { success: false, error: 'User not authenticated' }
+  }
+  await dbActions.pinHistoryChat(chatId, userId, pinned ? new Date() : null)
+  revalidateTag(`chat-${chatId}`, 'max')
+  return { success: true }
+}
+
+/**
  * Clear all chats for the current user
  */
 export async function clearChats() {

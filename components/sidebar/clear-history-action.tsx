@@ -33,9 +33,10 @@ import { Spinner } from '@/components/ui/spinner'
 
 interface ClearHistoryActionProps {
   empty: boolean
+  onClear?: () => Promise<{ success: boolean; error?: string }>
 }
 
-export function ClearHistoryAction({ empty }: ClearHistoryActionProps) {
+export function ClearHistoryAction({ empty, onClear }: ClearHistoryActionProps) {
   const [isPending, startTransition] = useTransition()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isAlertOpen, setIsAlertOpen] = useState(false)
@@ -43,7 +44,7 @@ export function ClearHistoryAction({ empty }: ClearHistoryActionProps) {
 
   const handleClearAction = useCallback(() => {
     startTransition(async () => {
-      const res = await clearChats()
+      const res = onClear ? await onClear() : await clearChats()
       if (res?.success) {
         toast.success('History cleared')
         router.push('/')
@@ -54,7 +55,7 @@ export function ClearHistoryAction({ empty }: ClearHistoryActionProps) {
       setIsMenuOpen(false)
       window.dispatchEvent(new CustomEvent('chat-history-updated'))
     })
-  }, [startTransition, router])
+  }, [onClear, startTransition, router])
 
   const handleAlertOpenChange = useCallback(
     (open: boolean) => {
