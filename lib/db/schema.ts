@@ -37,7 +37,8 @@ export const chats = pgTable(
       enum: ['public', 'private']
     })
       .notNull()
-      .default('private')
+      .default('private'),
+    pinnedAt: timestamp('pinned_at')
   },
   table => [
     // Indexes

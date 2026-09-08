@@ -45,6 +45,7 @@ describe('prepareMessages', () => {
         userId,
         visibility: 'private',
         createdAt: new Date(),
+        pinnedAt: null,
         messages: [
           {
             id: 'msg-1',
@@ -109,6 +110,7 @@ describe('prepareMessages', () => {
         userId,
         visibility: 'private',
         createdAt: new Date(),
+        pinnedAt: null,
         messages: [
           {
             id: 'msg-1',
@@ -185,6 +187,7 @@ describe('prepareMessages', () => {
         userId,
         visibility: 'private',
         createdAt: new Date(),
+        pinnedAt: null,
         messages: [
           {
             id: 'msg-1',
@@ -268,6 +271,7 @@ describe('prepareMessages', () => {
         userId,
         visibility: 'private',
         createdAt: new Date(),
+        pinnedAt: null,
         messages: []
       }
 
@@ -294,6 +298,7 @@ describe('prepareMessages', () => {
         userId,
         visibility: 'private',
         createdAt: new Date(),
+        pinnedAt: null,
         messages: [
           {
             id: 'msg-1',
@@ -342,6 +347,7 @@ describe('prepareMessages', () => {
         userId,
         visibility: 'private',
         createdAt: new Date(),
+        pinnedAt: null,
         messages: [
           {
             id: 'msg-1',
@@ -395,7 +401,8 @@ describe('prepareMessages', () => {
           title: 'Untitled',
           userId,
           visibility: 'private',
-          createdAt: new Date()
+          createdAt: new Date(),
+          pinnedAt: null
         },
         message: {
           id: 'msg-1',
@@ -441,6 +448,7 @@ describe('prepareMessages', () => {
         userId,
         visibility: 'private',
         createdAt: new Date(),
+        pinnedAt: null,
         messages: [
           {
             id: 'msg-1',

@@ -20,21 +20,24 @@ const fixtures = {
       title: 'User 1 Private Chat',
       userId: 'user-123',
       visibility: 'private' as const,
-      createdAt: new Date()
+      createdAt: new Date(),
+      pinnedAt: null
     },
     privateChat2: {
       id: 'private-chat-2',
       title: 'User 2 Private Chat',
       userId: 'user-456',
       visibility: 'private' as const,
-      createdAt: new Date()
+      createdAt: new Date(),
+      pinnedAt: null
     },
     publicChat: {
       id: 'public-chat-1',
       title: 'Public Chat',
       userId: 'user-123',
       visibility: 'public' as const,
-      createdAt: new Date()
+      createdAt: new Date(),
+      pinnedAt: null
     }
   },
   messages: {
@@ -250,7 +253,7 @@ describe('RLS Policies Integration Tests', () => {
       mockCreateChat.mockImplementation(async params => {
         // Simulate RLS ensuring userId matches
         if (params.userId === userId) {
-          return { ...newChat, createdAt: new Date() }
+          return { ...newChat, createdAt: new Date(), pinnedAt: null }
         }
         throw new Error('RLS violation')
       })

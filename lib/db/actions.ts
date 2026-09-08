@@ -795,6 +795,103 @@ export async function deleteUserLibraryFiles(
 }
 
 /**
+ * List chats with pin-aware ordering and optional title search.
+ * Pinned chats (pinnedAt IS NOT NULL) are returned first; within each group
+ * chats are ordered newest-first by createdAt.
+ */
+export async function listHistoryChats(
+  userId: string,
+  options: {
+    limit?: number
+    offset?: number
+    query?: string
+  } = {}
+): Promise<{ chats: Chat[]; nextOffset: number | null }> {
+  const { limit = 20, offset = 0, query } = options
+  try {
+    return withRLS(userId, async tx => {
+      const results = await tx
+        .select()
+        .from(chats)
+        .where(
+          and(
+            eq(chats.userId, userId),
+            query ? ilike(chats.title, `%${query}%`) : undefined
+          )
+        )
+        .orderBy(
+          // false (0) = pinned, true (1) = unpinned → pinned rows come first
+          sql`(${chats.pinnedAt} IS NULL)`,
+          desc(chats.createdAt)
+        )
+        .limit(limit + 1)
+        .offset(offset)
+
+      const page = results.slice(0, limit)
+      return {
+        chats: page,
+        nextOffset: results.length > limit ? offset + limit : null
+      }
+    })
+  } catch (error) {
+    console.error('Error listing history chats:', error)
+    return { chats: [], nextOffset: null }
+  }
+}
+
+/**
+ * Create or replace a chat record for history.
+ * On conflict by id, updates title and pinnedAt while preserving userId and visibility.
+ */
+export async function upsertHistoryChat(
+  userId: string,
+  chat: {
+    id: string
+    title: string
+    createdAt: Date
+    pinnedAt?: Date | null
+  }
+): Promise<Chat> {
+  return withRLS(userId, async tx => {
+    const [result] = await tx
+      .insert(chats)
+      .values({
+        id: chat.id,
+        title: chat.title,
+        userId,
+        createdAt: chat.createdAt,
+        pinnedAt: chat.pinnedAt ?? null,
+        visibility: 'private'
+      })
+      .onConflictDoUpdate({
+        target: chats.id,
+        set: {
+          title: chat.title,
+          pinnedAt: chat.pinnedAt ?? null
+        }
+      })
+      .returning()
+    return result
+  })
+}
+
+/**
+ * Set or clear the pinnedAt timestamp for a chat owned by the given user.
+ */
+export async function pinHistoryChat(
+  chatId: string,
+  userId: string,
+  pinnedAt: Date | null
+): Promise<void> {
+  await withRLS(userId, async tx => {
+    await tx
+      .update(chats)
+      .set({ pinnedAt })
+      .where(and(eq(chats.id, chatId), eq(chats.userId, userId)))
+  })
+}
+
+/**
  * Remove account linkage from feedback while retaining the feedback content.
  */
 export async function anonymizeUserFeedback(
