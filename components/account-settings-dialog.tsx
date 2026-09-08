@@ -39,6 +39,7 @@ import { Spinner } from '@/components/ui/spinner'
 
 import { ClearHistorySettings } from '@/components/clear-history-settings'
 import { useTheme } from '@/components/theme-provider'
+import { getHistoryMode } from '@/lib/history/factory'
 
 interface AccountSettingsDialogProps {
   open: boolean
@@ -151,19 +152,23 @@ export function AccountSettingsDialog({
             </div>
           </section>
 
-          <Separator />
+          {getHistoryMode() === 'idb' && (
+            <>
+              <Separator />
 
-          <section className="grid gap-3">
-            <div className="grid gap-1">
-              <h3 className="text-sm font-medium">History</h3>
-              <p className="text-sm text-muted-foreground">
-                Clear all conversations stored in this browser.
-              </p>
-            </div>
-            <ClearHistorySettings />
-          </section>
+              <section className="grid gap-3">
+                <div className="grid gap-1">
+                  <h3 className="text-sm font-medium">History</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Clear all conversations stored in this browser.
+                  </p>
+                </div>
+                <ClearHistorySettings />
+              </section>
 
-          <Separator />
+              <Separator />
+            </>
+          )}
 
           <section className="grid gap-3">
             <div className="grid gap-1">
