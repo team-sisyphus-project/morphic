@@ -10,6 +10,7 @@ import {
 import { getCurrentUserId } from '@/lib/auth/get-current-user'
 import { getUserMessageIds } from '@/lib/db/actions'
 import { generateId } from '@/lib/db/schema'
+import { getHistoryMode } from '@/lib/history/factory'
 import { checkAndEnforceAdaptiveLimit } from '@/lib/rate-limit/adaptive-limit'
 import { checkAndEnforceOverallChatLimit } from '@/lib/rate-limit/chat-limits'
 import { checkAndEnforceGuestLimit } from '@/lib/rate-limit/guest-limit'
@@ -167,7 +168,12 @@ export async function POST(req: Request) {
       `createChatStreamResponse - Start: model=${selectedModel.providerId}:${selectedModel.id}, searchMode=${searchMode}`
     )
 
-    const response = isGuest
+    // In IDB mode (no DATABASE_URL) there is no server-side persistence.
+    // Route to the ephemeral stream handler so DB calls are never made.
+    // The client saves the conversation to IndexedDB after streaming ends.
+    const useEphemeralStream = isGuest || getHistoryMode() === 'idb'
+
+    const response = useEphemeralStream
       ? await createEphemeralChatStreamResponse({
           messages: Array.isArray(messages) ? messages : [],
           model: selectedModel,

@@ -15,6 +15,8 @@ import {
   getPublicRateLimitDetails,
   toPublicErrorPayload
 } from '@/lib/errors/public-error'
+import { getHistoryMode, getHistoryRepository } from '@/lib/history/factory'
+import { saveConversationToIdb } from '@/lib/history/idb-save-chat'
 import { SHORTCUT_EVENTS } from '@/lib/keyboard-shortcuts'
 import { stripSpecBlocks } from '@/lib/render/strip-spec-blocks'
 import {
@@ -156,7 +158,9 @@ export function Chat({
             chatId: chatId,
             messageId,
             analyticsId: getDistinctId(),
-            ...(isGuest ? { messages } : {}),
+            // In IDB mode the server has no database; it needs the full message
+            // history from the client (same as the guest / ephemeral path).
+            ...(isGuest || getHistoryMode() === 'idb' ? { messages } : {}),
             message:
               trigger === 'regenerate-message' &&
               messageToRegenerate?.role === 'user'
@@ -176,6 +180,16 @@ export function Chat({
     onFinish: ({ message }) => {
       isStreamingRef.current = false
       window.dispatchEvent(new CustomEvent('chat-history-updated'))
+
+      // In IDB mode (no database) persist the completed conversation client-side.
+      // messagesRef.current holds the up-to-date list at the time of this call.
+      if (getHistoryMode() === 'idb') {
+        saveConversationToIdb(
+          getHistoryRepository(),
+          chatId,
+          messagesRef.current
+        ).catch(err => console.error('[IDB] Failed to save conversation:', err))
+      }
 
       const summary = summarizeGenui(getTextFromParts(message.parts))
       if (summary) {

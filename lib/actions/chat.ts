@@ -14,6 +14,18 @@ import { getTextFromParts } from '@/lib/utils/message-utils'
 // Constants
 const DEFAULT_CHAT_TITLE = 'Untitled'
 
+/**
+ * Returns true when a database connection is configured.
+ * Used to guard DB-backed server actions so they no-op gracefully in IDB mode
+ * (i.e., when DATABASE_URL / DATABASE_RESTRICTED_URL are absent).
+ */
+function hasDatabase(): boolean {
+  return !!(
+    process.env.DATABASE_RESTRICTED_URL?.trim() ||
+    process.env.DATABASE_URL?.trim()
+  )
+}
+
 // Create cached version of loadChatWithMessages with dynamic tags per chat
 const getCachedChatWithMessages = (
   chatId: string,
@@ -109,6 +121,19 @@ export async function createChat(
   const chatId = id || generateId()
   const chatTitle = title || DEFAULT_CHAT_TITLE
 
+  // In IDB mode (no database configured) return a stub; the client persists
+  // the conversation in IndexedDB after streaming completes.
+  if (!hasDatabase()) {
+    return {
+      id: chatId,
+      title: chatTitle.substring(0, 255),
+      userId,
+      visibility: 'private',
+      createdAt: new Date(),
+      pinnedAt: null
+    }
+  }
+
   // Create chat
   const chat = await dbActions.createChat({
     id: chatId,
@@ -176,6 +201,21 @@ export async function createChatWithFirstMessage(
   const messageId = message.id || generateId()
   const chatTitle = title || DEFAULT_CHAT_TITLE
 
+  // In IDB mode (no database configured) return stubs; the client persists
+  // the conversation in IndexedDB after streaming completes.
+  if (!hasDatabase()) {
+    const chat = await createChat(chatId, chatTitle, userId)
+    const stubMessage: Message = {
+      id: messageId,
+      chatId,
+      role: message.role,
+      createdAt: new Date(),
+      updatedAt: null,
+      metadata: (message.metadata as Record<string, unknown>) ?? null
+    }
+    return { chat, message: stubMessage }
+  }
+
   // Use transaction for atomic operation
   const result = await dbActions.createChatWithFirstMessageTransaction({
     chatId,
@@ -210,6 +250,19 @@ export async function upsertMessage(
   message: UIMessage,
   userId: string
 ): Promise<Message> {
+  // In IDB mode (no database configured) return a stub; the client persists
+  // the conversation in IndexedDB after streaming completes.
+  if (!hasDatabase()) {
+    return {
+      id: message.id || generateId(),
+      chatId,
+      role: message.role,
+      createdAt: new Date(),
+      updatedAt: null,
+      metadata: (message.metadata as Record<string, unknown>) ?? null
+    }
+  }
+
   // Skip access check - userId is required for audit/logging but not for authorization
   // Caller MUST ensure authorization before calling this function
   const messageId = message.id || generateId()
