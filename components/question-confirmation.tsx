@@ -15,18 +15,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 
-interface QuestionConfirmationProps {
-  toolInvocation: ToolPart<'askQuestion'>
-  onConfirm: (toolCallId: string, approved: boolean, response?: any) => void
-  isCompleted?: boolean
-}
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface QuestionOption {
   value: string
   label: string
 }
 
-interface QuestionInput {
+interface QuestionItem {
   question: string
   options: QuestionOption[]
   allowsInput?: boolean
@@ -34,52 +32,103 @@ interface QuestionInput {
   inputPlaceholder?: string
 }
 
-interface QuestionOutput {
-  selectedOptions?: string[]
-  inputText?: string
-  skipped?: boolean
+interface QuestionAnswer {
+  question: string
+  selectedOptions: string[]
+  inputText: string
 }
+
+interface QuestionConfirmationProps {
+  toolInvocation: ToolPart<'askQuestion'>
+  onConfirm: (toolCallId: string, approved: boolean, response?: any) => void
+  isCompleted?: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalise the raw tool input into an array of QuestionItem objects.
+ * Supports the new `{ questions: [...] }` envelope and the legacy flat
+ * `{ question, options, ... }` shape produced by older AI models.
+ */
+function normaliseQuestions(input: unknown): QuestionItem[] {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return []
+  }
+  const obj = input as Record<string, unknown>
+
+  // New envelope format
+  if (Array.isArray(obj.questions)) {
+    return obj.questions as QuestionItem[]
+  }
+
+  // Legacy flat format — wrap into a single-element array
+  if (typeof obj.question === 'string') {
+    return [obj as unknown as QuestionItem]
+  }
+
+  return []
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export function QuestionConfirmation({
   toolInvocation,
   onConfirm,
   isCompleted = false
 }: QuestionConfirmationProps) {
-  const input = (toolInvocation.input || {}) as QuestionInput
-  const {
-    question = '',
-    options = [],
-    allowsInput = false,
-    inputLabel = '',
-    inputPlaceholder = ''
-  } = input
+  const questions = normaliseQuestions(toolInvocation.input)
 
-  // Get result data if available
-  const resultData =
-    toolInvocation.state === 'output-available' && toolInvocation.output
-      ? toolInvocation.output
-      : null
-
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([])
-  const [inputText, setInputText] = useState('')
+  // Per-question answer state: selectedOptions[] + inputText
+  const [answers, setAnswers] = useState<QuestionAnswer[]>(() =>
+    questions.map(q => ({
+      question: q.question,
+      selectedOptions: [],
+      inputText: ''
+    }))
+  )
   const [completed, setCompleted] = useState(isCompleted)
   const [skipped, setSkipped] = useState(false)
 
-  const isButtonDisabled =
-    selectedOptions.length === 0 && (!allowsInput || inputText.trim() === '')
+  // Result data from a completed tool invocation
+  const resultData =
+    toolInvocation.state === 'output-available' && toolInvocation.output
+      ? (toolInvocation.output as Record<string, unknown>)
+      : null
 
-  const handleOptionChange = (label: string) => {
-    setSelectedOptions(prev => {
-      if (prev.includes(label)) {
-        return prev.filter(item => item !== label)
-      } else {
-        return [...prev, label]
-      }
-    })
+  // -------------------------------------------------------------------------
+  // Handlers
+  // -------------------------------------------------------------------------
+
+  const handleOptionChange = (questionIdx: number, label: string) => {
+    setAnswers(prev =>
+      prev.map((ans, i) => {
+        if (i !== questionIdx) return ans
+        const already = ans.selectedOptions.includes(label)
+        return {
+          ...ans,
+          selectedOptions: already
+            ? ans.selectedOptions.filter(o => o !== label)
+            : [...ans.selectedOptions, label]
+        }
+      })
+    )
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputText(e.target.value)
+  const handleInputChange = (
+    questionIdx: number,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = e.target.value
+    setAnswers(prev =>
+      prev.map((ans, i) =>
+        i === questionIdx ? { ...ans, inputText: value } : ans
+      )
+    )
   }
 
   const handleSkip = () => {
@@ -90,137 +139,152 @@ export function QuestionConfirmation({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
-    const response = {
-      selectedOptions,
-      inputText: inputText.trim(),
-      question
-    }
-
-    onConfirm(toolInvocation.toolCallId, true, response)
+    onConfirm(toolInvocation.toolCallId, true, { answers })
     setCompleted(true)
   }
 
-  // Get options to display (from result or local state)
-  const getDisplayedOptions = (): string[] => {
-    const result = resultData as QuestionOutput | null
-    if (result && Array.isArray(result.selectedOptions)) {
-      return result.selectedOptions
-    }
-    return selectedOptions
-  }
+  // Submit is disabled only when all questions are entirely unanswered
+  const isSubmitDisabled = answers.every((ans, i) => {
+    const q = questions[i]
+    return (
+      ans.selectedOptions.length === 0 &&
+      (!q?.allowsInput || ans.inputText.trim() === '')
+    )
+  })
 
-  // Get input text to display (from result or local state)
-  const getDisplayedInputText = (): string => {
-    const result = resultData as QuestionOutput | null
-    if (result && result.inputText) {
-      return result.inputText
-    }
-    return inputText
-  }
+  // -------------------------------------------------------------------------
+  // Completed / result view
+  // -------------------------------------------------------------------------
 
-  // Check if question was skipped
-  const wasSkipped = (): boolean => {
-    const result = resultData as QuestionOutput | null
-    if (result && result.skipped) {
-      return true
-    }
-    return skipped
-  }
-
-  const updatedQuery = () => {
-    // If skipped, show skipped message
-    if (wasSkipped()) {
-      return 'Question skipped'
-    }
-
-    const displayOptions = getDisplayedOptions()
-    const displayInputText = getDisplayedInputText()
-
-    const optionsText =
-      displayOptions.length > 0 ? `Selected: ${displayOptions.join(', ')}` : ''
-
-    const inputTextDisplay =
-      displayInputText.trim() !== '' ? `Input: ${displayInputText}` : ''
-
-    return [optionsText, inputTextDisplay].filter(Boolean).join(' | ')
-  }
-
-  // Show result view if completed or if tool has result state
   if (completed || toolInvocation.state === 'output-available') {
-    const isSkipped = wasSkipped()
+    const wasSkipped = skipped || resultData?.skipped === true
+
+    const displayAnswers: QuestionAnswer[] = (() => {
+      if (resultData && Array.isArray((resultData as any).answers)) {
+        return (resultData as any).answers as QuestionAnswer[]
+      }
+      return answers
+    })()
 
     return (
-      <Card className="p-3 md:p-4 w-full flex flex-col justify-between items-center gap-2">
-        <CardTitle className="text-base font-medium text-muted-foreground w-full">
-          {question}
-        </CardTitle>
-        <div className="flex items-center justify-start gap-1 w-full">
-          {isSkipped ? (
+      <Card className="p-3 md:p-4 w-full flex flex-col gap-2">
+        {wasSkipped ? (
+          <div className="flex items-center gap-1">
             <SkipForward size={16} className="text-yellow-500 w-4 h-4" />
-          ) : (
-            <Check size={16} className="text-green-500 w-4 h-4" />
-          )}
-          <h5 className="text-muted-foreground text-xs truncate">
-            {updatedQuery()}
-          </h5>
-        </div>
+            <span className="text-muted-foreground text-xs">
+              Questions skipped
+            </span>
+          </div>
+        ) : (
+          <>
+            {displayAnswers.map((ans, i) => (
+              <div key={i} className="w-full">
+                <CardTitle className="text-sm font-medium text-muted-foreground w-full mb-0.5">
+                  {ans.question}
+                </CardTitle>
+                <div className="flex items-center gap-1">
+                  <Check size={14} className="text-green-500 shrink-0" />
+                  <p className="text-xs text-muted-foreground truncate">
+                    {[
+                      ans.selectedOptions.length > 0
+                        ? ans.selectedOptions.join(', ')
+                        : null,
+                      ans.inputText?.trim() !== '' ? ans.inputText : null
+                    ]
+                      .filter(Boolean)
+                      .join(' | ') || '—'}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
       </Card>
     )
   }
 
+  // -------------------------------------------------------------------------
+  // Active (interactive) view
+  // -------------------------------------------------------------------------
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">{question}</CardTitle>
+        <CardTitle className="text-base">
+          {questions.length === 1
+            ? questions[0].question
+            : 'A few quick questions'}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit}>
-          <div className="flex flex-wrap justify-start mb-4">
-            {options &&
-              options.map((option: QuestionOption, index: number) => (
-                <div
-                  key={`option-${index}`}
-                  className="flex items-center space-x-1.5 mb-2"
-                >
-                  <Checkbox
-                    id={option.value}
-                    checked={selectedOptions.includes(option.label)}
-                    onCheckedChange={() => handleOptionChange(option.label)}
-                  />
-                  <label
-                    className="text-sm whitespace-nowrap pr-4"
-                    htmlFor={option.value}
-                  >
-                    {option.label}
-                  </label>
-                </div>
-              ))}
-          </div>
+          <div className="flex flex-col gap-6 mb-6">
+            {questions.map((q, qi) => (
+              <div key={qi} className="flex flex-col gap-2">
+                {/* Section label — only shown for multi-question */}
+                {questions.length > 1 && (
+                  <p className="text-sm font-medium leading-snug">
+                    {q.question}
+                  </p>
+                )}
 
-          {allowsInput && (
-            <div className="mb-6 flex flex-col space-y-2 text-sm">
-              <label className="text-muted-foreground" htmlFor="query">
-                {inputLabel}
-              </label>
-              <Input
-                type="text"
-                name="additional_query"
-                className="w-full"
-                id="query"
-                placeholder={inputPlaceholder}
-                value={inputText}
-                onChange={handleInputChange}
-              />
-            </div>
-          )}
+                {/* Checkbox options */}
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {q.options.map((option, oi) => (
+                    <div
+                      key={`q${qi}-opt${oi}`}
+                      className="flex items-center space-x-1.5"
+                    >
+                      <Checkbox
+                        id={`q${qi}-${option.value}`}
+                        checked={answers[qi]?.selectedOptions.includes(
+                          option.label
+                        )}
+                        onCheckedChange={() =>
+                          handleOptionChange(qi, option.label)
+                        }
+                      />
+                      <label
+                        className="text-sm whitespace-nowrap"
+                        htmlFor={`q${qi}-${option.value}`}
+                      >
+                        {option.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Optional free-text input */}
+                {q.allowsInput && (
+                  <div className="flex flex-col space-y-1 text-sm">
+                    {q.inputLabel && (
+                      <label
+                        className="text-muted-foreground"
+                        htmlFor={`q${qi}-text`}
+                      >
+                        {q.inputLabel}
+                      </label>
+                    )}
+                    <Input
+                      type="text"
+                      id={`q${qi}-text`}
+                      className="w-full"
+                      placeholder={q.inputPlaceholder ?? ''}
+                      value={answers[qi]?.inputText ?? ''}
+                      onChange={e => handleInputChange(qi, e)}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
 
           <div className="flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={handleSkip}>
               <SkipForward size={16} className="mr-1" />
               Skip
             </Button>
-            <Button type="submit" disabled={isButtonDisabled}>
+            <Button type="submit" disabled={isSubmitDisabled}>
               <ArrowRight size={16} className="mr-1" />
               Send
             </Button>
